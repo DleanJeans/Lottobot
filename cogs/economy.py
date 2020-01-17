@@ -3,6 +3,7 @@ import data
 from discord.ext import commands
 
 INCOME_BRIEF = 'Get 10 coins once if you start with no coins'
+BALANCE_BRIEF = 'Check your balance'
 
 class Economy(commands.Cog):
     def __init__(self, bot):
@@ -16,7 +17,7 @@ class Economy(commands.Cog):
     def get_coins(self, user):
         return data.get_value(user, data.COINS, 0)
 
-    @commands.command(aliases=['bal'])
+    @commands.command(aliases=['bal'], brief=BALANCE_BRIEF)
     async def balance(self, context):
         coins = self.get_coins(context.author)
         response = f'{context.author.mention} You have **{coins}** coins'

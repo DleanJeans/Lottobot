@@ -1,6 +1,7 @@
 import discord
 import data
 import ticket_parser
+import emotes
 from discord.ext import commands
 
 class Lottery(commands.Cog):
@@ -21,6 +22,9 @@ class Lottery(commands.Cog):
         
         orders[coins].append(ticket_number)
 
+    def clear_order(self, user):
+        data.cache[user.id][data.ORDERS] = {}
+
     @commands.command(aliases=['b'], brief='Buy tickets for this cycle')
     async def buy(self, context, coins:int, *tickets):
         user = context.author
@@ -34,12 +38,9 @@ class Lottery(commands.Cog):
         
         tickets_str = ticket_parser.format_list(new_tickets)
         ticket_count = len(new_tickets)
-        total_cost = coins * ticket_count
         
         economy = self.bot.get_cog('Economy')
         balance = economy.get_coins(user)
-
-        balance_after = balance - total_cost
         
         for t in new_tickets:
             self.add_order(user, coins, t)
@@ -48,12 +49,18 @@ class Lottery(commands.Cog):
 
         embed = discord.Embed(title=f'{user.name}\'s Ticket Order', colour=discord.Color.green())
 
+        total_cost = 0
         orders = data.cache[user.id][data.ORDERS]
         for coins, tickets in orders.items():
             ticket_count = len(tickets)
             cost = coins * ticket_count
-            name = f'{coins} coins × {ticket_count} = **{cost}** coins'
+            total_cost += cost
+            name = f'{coins} coins'
+            if ticket_count > 1:
+                name += f' × {ticket_count} = **{cost}** coins'
             embed.add_field(name=name, value=ticket_parser.format_list(tickets))
+
+        balance_after = balance - total_cost
 
         balance_status = (
             f'Current: **{balance}** coins\n'
@@ -61,13 +68,15 @@ class Lottery(commands.Cog):
             f'After: **{balance_after}** coins'
         )
         embed.add_field(name='Balance Status', value=balance_status)
-        # embed.add_field(name='Current Balance', value=f'{balance} coins')
-        # embed.add_field(name='Total Cost', value=f'{total_cost} coins')
-        # embed.add_field(name='Balance After', value=f'{balance_after} coins')
+        embed.add_field(name=':x: Clear', value='Clear all your orders')
 
         embed.set_footer(text=user.name, icon_url=user.avatar_url)
 
-        await context.send(embed=embed)
+        message = await context.send(embed=embed)
+
+        await message.add_reaction(emotes.X)
 
 def add_to(bot):
-    bot.add_cog(Lottery(bot))
+    cog = Lottery(bot)
+    bot.add_cog(cog)
+    return cog
