@@ -12,10 +12,10 @@ class Economy(commands.Cog):
 
     def add_coins(self, user, coins):
         new_balance = self.get_coins(user) + coins
-        data.set_value(user, data.COINS, new_balance)
+        data.set_disk(user, data.COINS, new_balance)
     
     def get_coins(self, user):
-        return data.get_value(user, data.COINS, 0)
+        return data.get_disk(user, data.COINS, 0)
 
     @commands.command(aliases=['bal'], brief=BALANCE_BRIEF)
     async def balance(self, context):
