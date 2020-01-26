@@ -5,7 +5,7 @@ from discord.ext.commands import Bot
 from dotenv import load_dotenv
 from cogs import economy, lottery
 
-bot = Bot(command_prefix=['lo ', 'lott '])
+bot = Bot(command_prefix=['lo ', 'lot ', 'lott '])
 economy.add_to(bot)
 lottery.add_to(bot)
 

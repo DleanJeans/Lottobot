@@ -2,24 +2,8 @@ import discord
 import data
 import ticket_parser
 import emotes
+import embeds
 from discord.ext import commands
-
-def add_tickets_as_embed_field(embed, ticket_dict, user):
-    for coins, tickets in ticket_dict.items():
-        ticket_count = len(tickets)
-        name = f'{coins} coins'
-        if ticket_count > 1:
-            name += f' × {ticket_count} = **{cost}** coins'
-        embed.add_field(name=name, value=ticket_parser.format_list(tickets))
-
-def sum_cost(user):
-    orders = data.get_ticket_orders(user)
-    total_cost = 0
-    for coins, tickets in orders.items():
-        ticket_count = len(tickets)
-        cost = coins * ticket_count
-        total_cost += cost
-    return total_cost
 
 class Lottery(commands.Cog):
     def __init__(self, bot):
@@ -37,64 +21,63 @@ class Lottery(commands.Cog):
             await context.send(response)
             return
         
-        for t in new_tickets:
-            data.add_ticket_order(user, coins, t)
+        order = data.add_ticket_order(user, coins, new_tickets)
         
-        print(data.cache)
+        await self.send_ticket_order_embed(context, user, order)
 
-        await self.send_ticket_orders_embed(context, user)
+    async def send_ticket_order_embed(self, context, user, order):
+        embed = embeds.embed_ticket_order(user, order)
+
+        message = await context.send(embed=embed)
+        order.message = message
+
+        if embed.color == embeds.AFFORDABLE_COLOR:
+            await message.add_reaction(emotes.MONEY_WINGS)
+        await message.add_reaction(emotes.X)
+
+    @commands.command(aliases=['t'], brief='Show all your paid ticket numbers')
+    async def tickets(self, context):
+        user = context.author
+        player = data.get_player(user)
+        if player.paid_tickets:
+            embed = embeds.embed_paid_tickets(user)
+            message = await message.send(embed=embed)
+            await message.add_reaction(emotes.X)
+        else:
+            await context.send(f"{user.mention} You haven't bought any tickets yet!")
 
     @commands.command(aliases=['o'], brief='Show your ticket orders')
     async def orders(self, context):
         user = context.author
-        await self.send_ticket_orders_embed(context, user)
+        player = data.get_player(user)
 
-    async def send_ticket_orders_embed(self, context, user):
-        embed = self.get_ticket_orders_embed(user)
-        message = await context.send(embed=embed)
-
-        if embed.color != discord.Color.orange():
-            await message.add_reaction(emotes.MONEY_WINGS)
-        await message.add_reaction(emotes.X)
-
-    def get_ticket_orders_embed(self, user):
-        economy = self.bot.get_cog('Economy')
-        balance = economy.get_coins(user)
-        total_cost = sum_cost(user)
-        affordable = total_cost and balance >= total_cost
-
-        color = discord.Color.green() if affordable else discord.Color.orange()
-        title = f'{user.name}\'s Ticket Orders'
-        description = ''
-        if not total_cost:
-            description = 'No Tickets Ordered'
-        elif not affordable:
-            description = 'Cannot Afford! **Undo** or **Clear** Orders!'
-
-        balance_after = balance - total_cost
-        balance_status = f'Current: **{balance}** coins\n'
-        if total_cost:
-            balance_status += (
-                f'Cost: **{total_cost}** coins\n'
-                f'After: **{balance_after}** coins'
-            )
-
-        embed = discord.Embed(title=title, color=color, description=description)
-        embed.set_footer(text=user.name, icon_url=user.avatar_url)
-
-        ticket_orders = data.get_ticket_orders(user)
-        if ticket_orders:
-            add_tickets_as_embed_field(embed, ticket_orders, user)
-
-        embed.add_field(name='Balance Status', value=balance_status)
+        for order in player.ticket_orders:
+            await self.send_ticket_order_embed(context, user, order)
         
-        if affordable:
-            embed.add_field(name=f'{emotes.MONEY_WINGS} Buy', value='Pay for all of your orders')
+        if not player.ticket_orders:
+            await context.send(f'{user.mention} You have no ticket orders!')
 
-        x_desc = 'Clear all your orders' if ticket_orders else 'Close this message'
-        embed.add_field(name=f'{emotes.X} Clear', value=x_desc)
+    async def on_reaction_add(self, reaction, user):
+        if self.should_ignore_reaction(reaction, user):
+            return
 
-        return embed
+        message = reaction.message
+        embed = message.embeds[0]
+        player = data.get_player(user)
+
+        if str(reaction) == emotes.X:
+            player.remove_order(message)
+            await message.delete()
+        elif str(reaction) == emotes.MONEY_WINGS:
+            order = player.find_order_by_message(message)
+            if order:
+                player.buy_ticket_order(order)
+                embed = embeds.embed_paid_tickets(user)
+                player.remove_order(message)
+
+                await message.edit(embed=embed)
+                await message.remove_reaction(emotes.MONEY_WINGS, self.bot.user)
+                await self.update_ticket_order_embeds(user)
 
     def should_ignore_reaction(self, reaction, user):
         message = reaction.message
@@ -108,54 +91,18 @@ class Lottery(commands.Cog):
 
         return ignored
 
-    async def on_reaction_add(self, reaction, user):
-        if self.should_ignore_reaction(reaction, user):
-            return
+    async def update_ticket_order_embeds(self, user):
+        player = data.get_player(user)
+        for order in player.ticket_orders:
+            message = order.message
+            if not message: continue
 
-        message = reaction.message
-        embed = message.embeds[0]
-
-        if str(reaction) == emotes.X:
-            ticket_orders = data.get_ticket_orders(user)
-            if ticket_orders:
-                data.clear_ticket_orders(user)
-                embed = self.get_ticket_orders_embed(user)
-                await message.edit(embed=embed)
-            else:
-                await message.delete()
-        elif str(reaction) == emotes.MONEY_WINGS:
-            await self.buy_orders(user)
-            await self.send_paid_tickets_embed(message, user)
-    
-    async def buy_orders(self, user):
-        total_cost = sum_cost(user)
-        economy = self.bot.get_cog('Economy')
-        economy.add_coins(user, -total_cost)
-        
-        data.transfer_orders_to_paid(user)
-        data.clear_ticket_orders(user)
-
-    async def send_paid_tickets_embed(self, message, user):
-        embed = self.get_paid_tickets_embed(user)
-        new_message = await message.channel.send(embed=embed)
-        await message.delete()
-        await new_message.add_reaction(emotes.X)
-    
-    def get_paid_tickets_embed(self, user):
-        economy = self.bot.get_cog('Economy')
-        balance = economy.get_coins(user)
-
-        title = f'{user.name}\'s Paid Tickets'
-        embed = discord.Embed(title=title, color=discord.Color.green())
-        embed.set_footer(text=user.name, icon_url=user.avatar_url)
-
-        paid_tickets = data.get_paid_tickets(user)
-        add_tickets_as_embed_field(embed, paid_tickets, user)
-
-        embed.add_field(name='Current Balance', value=f'**{balance}** coins')
-        embed.add_field(name=f'{emotes.X} Close', value='Close this message')
-
-        return embed
+            new_embed = embeds.embed_ticket_order(user, order)
+            await message.edit(embed=new_embed)
+            if emotes.MONEY_WINGS not in message.reactions:
+                await message.remove_reaction(emotes.X, self.bot.user)
+                await message.add_reaction(emotes.MONEY_WINGS)
+                await message.add_reaction(emotes.X)
 
 def add_to(bot):
     bot.add_cog(Lottery(bot))

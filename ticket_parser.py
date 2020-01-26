@@ -5,7 +5,17 @@ REGEX_SINGLE = '~*(\d+)\+{0,1}(\d*)'
 MIN = 0
 MAX = 99
 
-def format_list(tickets):
+def format_as_description(tickets):
+    full_list = ', '.join(map(str, tickets))
+    short_list = shorten_list(tickets)
+    description = f'{full_list}'
+
+    if short_list != full_list:
+        description += f'\n**Shorten**: {short_list}'
+
+    return description
+
+def shorten_list(tickets):
     if len(tickets) <= 1:
         tickets = map(str, tickets)
         return ' '.join(tickets)
@@ -14,14 +24,16 @@ def format_list(tickets):
     last_adjacent = False
     adjacent = False
     
-    for t, next in zip(tickets, tickets[1:]):
+    for i, ticket in enumerate(tickets):
+        next_ticket = tickets[i+1] if i+1 < len(tickets) else -10
+
         if not adjacent:
-            output += f'{t} '
+            output += f'{ticket} '
         
-        adjacent = abs(t - next) == 1
+        adjacent = abs(ticket - next_ticket) == 1
 
         if not adjacent and last_adjacent:
-            output += f'-{t} '
+            output += f'-{ticket} '
         last_adjacent = adjacent
     
     output = output.replace(' -', '-')
