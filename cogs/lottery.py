@@ -1,8 +1,15 @@
+import asyncio
 import discord
+import pytz
+
 import data
-import ticket_parser
 import emotes
 import embeds
+import colors
+import ticket_parser
+
+from datetime import datetime
+from lotto import ball_machine
 from discord.ext import commands
 
 class Lottery(commands.Cog):
@@ -46,7 +53,7 @@ class Lottery(commands.Cog):
         else:
             await context.send(f"{user.mention} You haven't bought any tickets yet!")
 
-    @commands.command(aliases=['o'], brief='Show your ticket orders')
+    @commands.command(aliases=['o'], brief='Show all your ticket orders')
     async def orders(self, context):
         user = context.author
         player = data.get_player(user)
@@ -56,6 +63,29 @@ class Lottery(commands.Cog):
         
         if not player.ticket_orders:
             await context.send(f'{user.mention} You have no ticket orders!')
+
+    @commands.command()
+    async def draw(self, context):
+        result = ball_machine.draw()
+        embed = discord.Embed(title='Draw Result')
+        embed.timestamp = datetime.now().astimezone()
+        
+        message = None
+        while not result.revealed_all():
+            embed.color = colors.random_bright(embed.color)
+            embed.description = '```%s```' % result.reveal()
+            if result.last_revealed:
+                prize_name = result.get_number_prize_name(result.last_revealed)
+                embed.description = f'`{prize_name}:` **{result.last_revealed}**\n' + embed.description
+
+            if not message:
+                message = await context.send(embed=embed)
+            else:
+                await message.edit(embed=embed)
+            await asyncio.sleep(1)
+        
+        embed.description = '```%s```' % result.reveal()
+        await message.edit(embed=embed)
 
     async def on_reaction_add(self, reaction, user):
         if self.should_ignore_reaction(reaction, user):
@@ -68,13 +98,14 @@ class Lottery(commands.Cog):
         if str(reaction) == emotes.X:
             player.remove_order(message)
             await message.delete()
+        
         elif str(reaction) == emotes.MONEY_WINGS:
             order = player.find_order_by_message(message)
             if order:
                 player.buy_ticket_order(order)
-                embed = embeds.embed_paid_tickets(user)
                 player.remove_order(message)
 
+                embed = embeds.embed_paid_tickets(user)
                 await message.edit(embed=embed)
                 await message.remove_reaction(emotes.MONEY_WINGS, self.bot.user)
                 await self.update_ticket_order_embeds(user)
@@ -85,7 +116,7 @@ class Lottery(commands.Cog):
         reaction_by_bot = user == self.bot.user
         bot_message = message.author == self.bot.user
         has_embeds = message.embeds
-        message_for_this_user = has_embeds or user.name not in message.embeds[0].title
+        message_for_this_user = has_embeds and user.name in message.embeds[0].title
 
         ignored = any([reaction_by_bot, not bot_message, not has_embeds, not message_for_this_user])
 
