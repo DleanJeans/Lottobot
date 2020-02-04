@@ -8,14 +8,26 @@ class TicketOrder:
         return self.coins * len(self.tickets)
 
 class Player:
-    def __init__(self, balance=0):
+    def __init__(self, id, balance=0):
+        self.id = id
         self.balance = balance
+        self.reset()
+
+    def reset(self):
         self.ticket_orders = []
         self.paid_tickets = {}
-    
+        self.total_winnings = 0
+
     def get_saved_data(self):
         return { 'balance': self.balance }
-    
+
+    def has_joined(self):
+        return self.ticket_orders or self.paid_tickets
+
+    def pay_prize(self, coins):
+        self.add_to_balance(coins)
+        self.total_winnings += coins
+
     def add_to_balance(self, coins):
         self.balance += coins
     
@@ -36,6 +48,12 @@ class Player:
 
     def clear_ticket_orders(self):
         self.ticket_orders.clear()
+    
+    def get_total_spendings(self):
+        total = 0
+        for ticket, worth in self.paid_tickets.items():
+            total += worth
+        return total
 
     def buy_ticket_order(self, order):
         self.balance -= order.total_cost()
@@ -49,6 +67,9 @@ class Player:
                 tickets_by_price[price] = []
             tickets_by_price[price].append(ticket)
         return tickets_by_price
+    
+    def check_ticket(self, number):
+        return self.paid_tickets.get(number, 0)
 
     def clear_paid_tickets(self):
         self.paid_tickets.clear()

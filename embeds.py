@@ -7,10 +7,11 @@ AFFORDABLE_COLOR = discord.Color.blue()
 INAFFORDABLE_COLOR = discord.Color.orange()
 
 BUY_FIELD = f'{emotes.MONEY_WINGS} Buy'
+CANCEL_FIELD = f'{emotes.X} Cancel'
 CLOSE_FIELD = f'{emotes.X} Close'
 
 PAY_ORDER = 'Pay for these tickets'
-CLOSE_ORDER = 'Close this order'
+CANCEL_ORDER = 'Cancel this order'
 
 EACH_TICKET_COST = 'Each Ticket Cost'
 TOTAL_COST = 'Total Cost'
@@ -26,9 +27,8 @@ CLOSE_THIS_MESSAGE = 'Close this message'
 def format_coins(coins):
     return f'**{coins}** coins'
 
-def embed_ticket_order(user, order):
+def embed_ticket_order(user, order, hide_buy_field=False):
     title = user.name + TICKET_ORDER_OF
-    full_list = ', '.join(map(str, order.tickets))
     description = ticket_parser.format_as_description(order.tickets)
 
     balance = data.get_balance(user)
@@ -54,13 +54,13 @@ def embed_ticket_order(user, order):
 
     add_coin_fields(embed, coin_fields)
 
-    if balance_after >= 0:
+    if balance_after >= 0 and not hide_buy_field:
         embed.add_field(name=BUY_FIELD, value=PAY_ORDER)
-    embed.add_field(name=CLOSE_FIELD, value=CLOSE_ORDER)
+    embed.add_field(name=CANCEL_FIELD, value=CANCEL_ORDER)
 
     return embed
     
-def embed_paid_tickets(user):
+def embed_paid_tickets(user, next_draw=None):
     player = data.get_player(user)
 
     title = user.name + TICKETS_OF
@@ -74,6 +74,10 @@ def embed_paid_tickets(user):
 
     embed.add_field(name=BALANCE, value=format_coins(player.balance))
     embed.add_field(name=CLOSE_FIELD, value=CLOSE_THIS_MESSAGE)
+
+    if next_draw:
+        embed.set_footer(text='Next Draw at')
+        embed.timestamp = next_draw
 
     return embed
 

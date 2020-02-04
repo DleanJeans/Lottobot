@@ -4,14 +4,19 @@ REGEX_RANGE = '(\d+)-(\d+)'
 REGEX_SINGLE = '~*(\d+)\+{0,1}(\d*)'
 MIN = 0
 MAX = 99
+BALL_FORMAT = '{:02}'.format
 
 def format_as_description(tickets):
-    full_list = ', '.join(map(str, tickets))
+    full_list = ', '.join(map(BALL_FORMAT, tickets))
     short_list = shorten_list(tickets)
     description = f'{full_list}'
 
     if short_list != full_list:
         description += f'\n**Shorten**: {short_list}'
+    
+    ticket_count = len(tickets)
+    if ticket_count > 1:
+        description += f'\n**Count**: {ticket_count}'
 
     return description
 
@@ -28,12 +33,12 @@ def shorten_list(tickets):
         next_ticket = tickets[i+1] if i+1 < len(tickets) else -10
 
         if not adjacent:
-            output += f'{ticket} '
+            output += f'{ticket:02} '
         
         adjacent = abs(ticket - next_ticket) == 1
 
         if not adjacent and last_adjacent:
-            output += f'-{ticket} '
+            output += f'-{ticket:02} '
         last_adjacent = adjacent
     
     output = output.replace(' -', '-')
@@ -106,7 +111,7 @@ def parse_list(input_tickets):
         try:
             new_tickets = detect_parse(ticket)
             tickets += new_tickets
-        except Exception as e:
+        except ValueError as e:
             exceptions.append(e.args[0])
 
     tickets.sort()
