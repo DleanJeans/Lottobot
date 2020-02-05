@@ -2,7 +2,7 @@ import discord
 import data
 from discord.ext import commands
 
-INCOME_BRIEF = 'Get 10 coins once if you start with no coins'
+INCOME_BRIEF = 'Get 10 coins if you start with no coins'
 BALANCE_BRIEF = 'Check your balance'
 
 class Economy(commands.Cog):

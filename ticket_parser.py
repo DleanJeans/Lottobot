@@ -1,48 +1,56 @@
 import re
+import textwrap
+import itertools
 
 REGEX_RANGE = '(\d+)-(\d+)'
 REGEX_SINGLE = '~*(\d+)\+{0,1}(\d*)'
+
 MIN = 0
 MAX = 99
 BALL_FORMAT = '{:02}'.format
 
-def format_as_description(tickets):
-    full_list = ', '.join(map(BALL_FORMAT, tickets))
+SHORTEN = '**Shorten**'
+COUNT = '**Count**'
+NOT_WITHIN = 'is not within `00` and `99`'
+
+def backtick_every_word(string):
+    return ' '.join(map('`{}`'.format, string.split(' ')))
+
+def format_as_description(tickets, tickets_per_line=11):
+    tickets = list(set(tickets))
+    tickets = sorted(tickets)
+    full_list = ' '.join(map(BALL_FORMAT, tickets))
+    full_list = '\n'.join(textwrap.wrap(full_list, width=3*tickets_per_line))
     short_list = shorten_list(tickets)
-    description = f'{full_list}'
+    
+    description = f'```{full_list}```\n'
 
     if short_list != full_list:
-        description += f'\n**Shorten**: {short_list}'
+        short_list = backtick_every_word(short_list)
+        description += f'{SHORTEN}: {short_list}\n'
     
     ticket_count = len(tickets)
     if ticket_count > 1:
-        description += f'\n**Count**: {ticket_count}'
+        description += f'{COUNT}: {ticket_count}\n'
 
     return description
 
 def shorten_list(tickets):
-    if len(tickets) <= 1:
-        tickets = map(str, tickets)
-        return ' '.join(tickets)
-    
-    output = ''
-    last_adjacent = False
-    adjacent = False
-    
-    for i, ticket in enumerate(tickets):
-        next_ticket = tickets[i+1] if i+1 < len(tickets) else -10
+    output = []
+    for r in list(ranges(tickets)):
+        a, b = r
+        if a == b:
+            output.append(str(a))
+        else:
+            sep = '-' if abs(a-b) >= 2 else ' '
+            output.append(f'{a}{sep}{b}')
+    output = ' '.join(output)
+    return output
 
-        if not adjacent:
-            output += f'{ticket:02} '
-        
-        adjacent = abs(ticket - next_ticket) == 1
-
-        if not adjacent and last_adjacent:
-            output += f'-{ticket:02} '
-        last_adjacent = adjacent
-    
-    output = output.replace(' -', '-')
-    return output.strip()
+def ranges(i):
+    for a, b in itertools.groupby(enumerate(i), lambda pair: pair[1] - pair[0]):
+        b = list(b)
+        yield b[0][1], b[-1][1]
 
 def valid(ticket):
     return MIN <= int(ticket) <= MAX
@@ -56,7 +64,7 @@ def parse_range(match):
     a, b = ticket_range
     for t in ticket_range:
         if not valid(t):
-            raise ValueError(f'Range {a}-{b} is not within 00 and 99!')
+            raise ValueError(f'Range `{a}`-`{b}` {NOT_WITHIN}!')
     
     return [i for i in range(a, b+1)]
 
@@ -66,7 +74,7 @@ def parse_single(match):
     ticket = match.string
 
     if not valid(center):
-        raise ValueError(f'Ticket Order **{ticket}**: {center} is not within 00 to 99.')
+        raise ValueError(f'`{center}` {NOT_WITHIN}!')
 
     if '~' in ticket:
         reverse = center.zfill(2)[::-1]
@@ -93,17 +101,9 @@ REGEX_TO_FUNCTION = {
     REGEX_SINGLE: parse_single
 }
 
-def detect_parse(ticket):
-    for regex, do in REGEX_TO_FUNCTION.items():
-        match = re.match(regex, ticket)
-        if match:
-            new_tickets = do(match)
-            return new_tickets
-        
-    raise ValueError(f'Ticket Order **{ticket}** ignored!')
-
-
 def parse_list(input_tickets):
+    global first_error
+    first_error = True
     tickets = []
     exceptions = []
     
@@ -119,4 +119,18 @@ def parse_list(input_tickets):
     if exceptions:
         raise ValueError(*exceptions)
 
-    return tickets
+    return list(set(tickets))
+
+first_error = True
+
+def detect_parse(ticket):
+    for regex, do in REGEX_TO_FUNCTION.items():
+        match = re.match(regex, ticket)
+        if match:
+            new_tickets = do(match)
+            return new_tickets
+    
+    global first_error
+    error_msg = f'WTF is this bruh?' if first_error else 'And this?'
+    first_error = False
+    raise ValueError(f'{error_msg} `{ticket}`')

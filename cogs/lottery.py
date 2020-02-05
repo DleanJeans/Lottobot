@@ -8,6 +8,7 @@ import embeds
 import colors
 import ticket_parser
 
+from player import Player
 from datetime import datetime
 from lotto import ball_machine, draw_result
 from discord.ext import commands
@@ -25,12 +26,12 @@ class Lottery(commands.Cog):
     def reset(self):
         self.scheduled = False
         self.next_draw = None
-        self.orders_blocked = False
+        self.announcing = False
         self.guilds_announce_channel = {}
         data.clear_players_tickets()
     
     async def block_orders(self):
-        self.orders_blocked = True
+        self.announcing = True
         players = data.get_joined_players()
         for p in players:
             user = self.bot.get_user(p.id)
@@ -39,7 +40,7 @@ class Lottery(commands.Cog):
     @commands.command(aliases=['b'], brief='Buy tickets for this cycle')
     async def buy(self, context, coins:int, *tickets):
         user = context.author
-        if self.orders_blocked:
+        if self.announcing:
             response = f'{user.name}\nHold on a minute! The result is being announced right now!'
             await context.send(response)
             return
@@ -53,18 +54,31 @@ class Lottery(commands.Cog):
             return
         
         order = data.add_ticket_order(user, coins, new_tickets)
-        
         await self.send_ticket_order_embed(context, user, order)
+    
+    @buy.error
+    async def buy_error(self, context, error):
+        raise
 
     async def send_ticket_order_embed(self, context, user, order):
         embed = embeds.embed_ticket_order(user, order)
 
         message = await context.send(embed=embed)
         order.message = message
+        can_buy = self.player_can_buy(user, order)
 
-        if embed.color == embeds.AFFORDABLE_COLOR:
+        if can_buy:
             await message.add_reaction(emotes.MONEY_WINGS)
         await message.add_reaction(emotes.X)
+
+    def player_can_buy(self, user_or_player, order):
+        if type(user_or_player) is Player:
+            player = user_or_player
+        else:
+            user = user_or_player
+            player = data.get_player(user)
+        
+        return player.can_buy(order) and not self.announcing
 
     @commands.command(aliases=['t'], brief='Show all your paid ticket numbers')
     async def tickets(self, context):
@@ -133,7 +147,10 @@ class Lottery(commands.Cog):
             
             winning_tickets = result.compare_tickets(player)
 
-            if not winning_tickets: continue
+            def is_list_empty(l):
+                return all(map(is_list_empty, l)) if type(l) is list else False
+
+            if is_list_empty(winning_tickets): continue
 
             winner_embed = discord.Embed(title=f'You Won! {user.name}') 
             winner_embed.set_thumbnail(url=user.avatar_url)
@@ -146,7 +163,7 @@ class Lottery(commands.Cog):
                 values = []
                 for number, worth in tickets[::-1]:
                     prize_coins = worth * multi
-                    value = f'`{number:02}`: **{worth}** × {multi:02} = **{prize_coins} coins**'
+                    value = f'`{number:02}`: **{worth}** → **{prize_coins} coins**'
                     values.append(value)
                 if values:
                     field = dict(name=prize_name, value='\n'.join(values))
@@ -154,11 +171,13 @@ class Lottery(commands.Cog):
             
             total_spendings = player.get_total_spendings()
             initial_balance = player.balance + total_spendings - player.total_winnings
+            change = player.total_winnings - total_spendings
             value = (
-                f'Spent: {embeds.format_coins(total_spendings)}\n'
-                f'Won : {embeds.format_coins(player.total_winnings)}\n'
-                f'Before: {embeds.format_coins(initial_balance)}\n'
-                f'After: {embeds.format_coins(player.balance)}'
+                f' {embeds.as_coins(initial_balance)}\n'
+                f'-{embeds.as_coins(total_spendings)}\n'
+                f'+{embeds.as_coins(player.total_winnings)}\n'
+                f'={embeds.as_coins(player.balance)}\n'
+                f'({embeds.as_coins(change)})'
             )
             winner_embed.add_field(name='Balance Status', value=value)
 
@@ -233,20 +252,21 @@ class Lottery(commands.Cog):
         player = data.get_player(user)
         for order in player.ticket_orders:
             message = order.message
+            if not message: continue
             message = discord.utils.get(self.bot.cached_messages, id=message.id)
             order.message = message
-            if not message: continue
 
-            new_embed = embeds.embed_ticket_order(user, order, hide_buy_field=self.orders_blocked)
+            new_embed = embeds.embed_ticket_order(user, order, self.announcing)
             await message.edit(embed=new_embed)
-            
-            has_buy_field = discord.utils.get(new_embed.fields, name=embeds.BUY_FIELD)
+
+            can_buy = self.player_can_buy(player, order)
             has_buy_reaction = discord.utils.get(message.reactions, emoji=emotes.MONEY_WINGS)
-            if has_buy_field and not has_buy_reaction:
+
+            if can_buy and not has_buy_reaction:
                 await message.remove_reaction(emotes.X, self.bot.user)
                 await message.add_reaction(emotes.MONEY_WINGS)
                 await message.add_reaction(emotes.X)
-            elif not has_buy_field and has_buy_reaction:
+            elif not can_buy and has_buy_reaction:
                 await message.remove_reaction(emotes.MONEY_WINGS, self.bot.user)
 
 def add_to(bot):

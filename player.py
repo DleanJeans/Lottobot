@@ -17,6 +17,19 @@ class Player:
         self.ticket_orders = []
         self.paid_tickets = {}
         self.total_winnings = 0
+    
+    def get_max_tickets(self):
+        return 20
+    
+    def can_hold_more_tickets(self, order):
+        tickets_after_buying = set(list(self.paid_tickets.keys()) + order.tickets)
+        return len(tickets_after_buying) <= self.get_max_tickets()
+
+    def can_afford(self, order):
+        return self.balance >= order.total_cost()
+
+    def can_buy(self, order):
+        return self.can_afford(order) and self.can_hold_more_tickets(order)
 
     def get_saved_data(self):
         return { 'balance': self.balance }
