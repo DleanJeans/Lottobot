@@ -21,7 +21,7 @@ COST = 'Cost'
 REACTIONS = 'Reactions'
 TICKET_COUNT = 'Ticket Count'
 TICKET_ORDER_OF = '\'s Ticket Order'
-TICKETS_OF = '\' Tickets'
+TICKETS_OF = '\'s Tickets'
 
 CANNOT_AFFORD = f'You\'re %s short!'
 MAX_TICKET_COUNT = f'Your max ticket count is: **%s**'
@@ -33,7 +33,7 @@ SPENT = 'Spent'
 NEXT_DRAW_AT = 'Next Draw at'
 
 def as_coins(coins):
-    return f'**{coins}** coins'
+    return '**{:,}** coins'.format(coins).replace(',', ' ')
 
 def embed_ticket_order(user, order, announcing=False):
     player = data.get_player(user)
@@ -77,10 +77,12 @@ def embed_ticket_order(user, order, announcing=False):
 
     if not can_buy:
         reason = ''
-        if not player.can_afford(order):
-            reason = CANNOT_AFFORD % as_coins(-balance_after)
-        elif not player.can_hold_more_tickets(order):
+        if not player.can_hold_more_tickets(order):
             reason = MAX_TICKET_COUNT % player.get_max_tickets()
+        elif not player.can_afford(order):
+            reason = CANNOT_AFFORD % as_coins(-balance_after)
+            if balance < 10:
+                reason += '\nUse `lott income` to get up to **10** coins!'
         elif announcing:
             reason = RESULT_ANNOUNCING
         embed.add_field(name=CANNOT_BUY_FIELD, value=reason)

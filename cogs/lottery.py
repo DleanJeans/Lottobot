@@ -14,7 +14,34 @@ from lotto import ball_machine, draw_result
 from discord.ext import commands
 from datetime import datetime, timedelta
 
-def ceil_datetime(dt, minutes=1):
+BUY_INSTRUCTION = '''
+**Syntax**: `lott buy [coins], [numbers]`
+`numbers` have to be within `00` to `99`
+_Example_: `lott buy 10, 20 30 40` 
+buys 3 tickets `20` `30` and `40`
+each costs **10** coins, totaling **30** coins
+'''
+
+BUY_SHORTHANDS = '''
+**Shorthands**:
+`a-b`: includes all the number between `a` and `b` and themselves
+_Example_: `6-9` = `06` `07` `08` `09`
+
+`~a`: includes `a` and its reversed number
+_Example_: `~42` = `24` `42`
+
+`a+(b)`: includes `a` and `b` adjecent numbers in each direction
+`b` is `1` by default if not given
+can be combined with `~`
+_Example_: 
+`80+` = `79` `80` `81` 
+`80+5` = `75-85`
+`~60+5` = `06` `55-65`
+'''
+
+BUY_DESCRIPTION = f'{BUY_INSTRUCTION}{BUY_SHORTHANDS}'.replace('*', '').replace('`', '').replace('_', '')
+
+def ceil_datetime(dt, minutes=3):
     delta = timedelta(minutes=minutes)
     return dt + (datetime.min - dt) % delta
 
@@ -36,14 +63,41 @@ class Lottery(commands.Cog):
         for p in players:
             user = self.bot.get_user(p.id)
             await self.update_ticket_order_embeds(user)
+    
+    async def send_instruction(self, context):
+        embed = discord.Embed()
+        embed.color = colors.random_bright()
+        embed.description = BUY_INSTRUCTION
+        await context.send(embed=embed)
 
-    @commands.command(aliases=['b'], brief='Buy tickets for this cycle')
-    async def buy(self, context, coins:int, *tickets):
+    @commands.command(aliases=['b'], brief='Buy tickets for this cycle', description=BUY_DESCRIPTION)
+    async def buy(self, context, coins, *tickets):
         user = context.author
-        if self.announcing:
-            response = f'{user.name}\nHold on a minute! The result is being announced right now!'
-            await context.send(response)
+
+        if not tickets:
+            await self.send_instruction(context)
             return
+
+        if coins[-1] == ',':
+            coins = coins[:-1].strip()
+        if coins.isdigit():
+            coins = int(coins)
+        elif coins == 'all':
+            coins = data.get_player(user).balance
+        else:
+            await self.send_instruction(context)
+            return
+        
+        if coins <= 0:
+            await context.send('Gimme more than **0** coins, bruh!')
+            return
+        
+        was_announcing = self.announcing
+        if self.announcing:
+            response = f'{user.mention}\nHold on a minute! The result is being announced right now!'
+            await context.send(response)
+            while self.announcing:
+                await asyncio.sleep(1)
         
         try:
             new_tickets = ticket_parser.parse_list(tickets)
@@ -54,16 +108,20 @@ class Lottery(commands.Cog):
             return
         
         order = data.add_ticket_order(user, coins, new_tickets)
-        await self.send_ticket_order_embed(context, user, order)
+        await self.send_ticket_order_embed(context, user, order, was_announcing)
     
     @buy.error
     async def buy_error(self, context, error):
-        raise
+        if type(error) is commands.MissingRequiredArgument:
+            await self.send_instruction(context)
+        else:
+            raise
 
-    async def send_ticket_order_embed(self, context, user, order):
+    async def send_ticket_order_embed(self, context, user, order, mention=False):
         embed = embeds.embed_ticket_order(user, order)
+        content = user.mention if mention else None
 
-        message = await context.send(embed=embed)
+        message = await context.send(content=content, embed=embed)
         order.message = message
         can_buy = self.player_can_buy(user, order)
 
@@ -80,7 +138,7 @@ class Lottery(commands.Cog):
         
         return player.can_buy(order) and not self.announcing
 
-    @commands.command(aliases=['t'], brief='Show all your paid ticket numbers')
+    @commands.command(aliases=['t', 'tix', 'tic', 'ticket'], brief='Show all your paid ticket numbers')
     async def tickets(self, context):
         user = context.author
         player = data.get_player(user)
@@ -91,7 +149,7 @@ class Lottery(commands.Cog):
         else:
             await context.send(f"{user.mention}\nYou haven't bought any tickets yet!")
 
-    @commands.command(aliases=['o'], brief='Show all your ticket orders')
+    @commands.command(aliases=['o', 'ord', 'order'], brief='Show all your ticket orders (to be bought)')
     async def orders(self, context):
         user = context.author
         player = data.get_player(user)
@@ -152,7 +210,7 @@ class Lottery(commands.Cog):
 
             if is_list_empty(winning_tickets): continue
 
-            winner_embed = discord.Embed(title=f'You Won! {user.name}') 
+            winner_embed = discord.Embed(title=f'You Won!') 
             winner_embed.set_thumbnail(url=user.avatar_url)
             winner_embed.color = colors.random_bright()
             winner_embed.timestamp = self.next_draw
@@ -172,14 +230,18 @@ class Lottery(commands.Cog):
             total_spendings = player.get_total_spendings()
             initial_balance = player.balance + total_spendings - player.total_winnings
             change = player.total_winnings - total_spendings
+            sign = '+' if change >= 0 else ''
             value = (
                 f' {embeds.as_coins(initial_balance)}\n'
                 f'-{embeds.as_coins(total_spendings)}\n'
                 f'+{embeds.as_coins(player.total_winnings)}\n'
                 f'={embeds.as_coins(player.balance)}\n'
-                f'({embeds.as_coins(change)})'
+                f'({sign}{embeds.as_coins(change)})'
             )
             winner_embed.add_field(name='Balance Status', value=value)
+
+           
+            winner_embed.title += ' Well, kinda...' if change <= 0 else ' Congrats!'
 
             message_args = dict(content=user.mention, embed=winner_embed)
             await context.send(**message_args) 

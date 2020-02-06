@@ -40,10 +40,10 @@ def shorten_list(tickets):
     for r in list(ranges(tickets)):
         a, b = r
         if a == b:
-            output.append(str(a))
+            output.append(BALL_FORMAT(a))
         else:
             sep = '-' if abs(a-b) >= 2 else ' '
-            output.append(f'{a}{sep}{b}')
+            output.append(f'{a:02}{sep}{b:02}')
     output = ' '.join(output)
     return output
 

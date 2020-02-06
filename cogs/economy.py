@@ -1,6 +1,9 @@
 import discord
 import data
+import colors
 from discord.ext import commands
+
+DEFAULT_INCOME = 10
 
 INCOME_BRIEF = 'Get 10 coins if you start with no coins'
 BALANCE_BRIEF = 'Check your balance'
@@ -8,18 +11,20 @@ BALANCE_BRIEF = 'Check your balance'
 class Economy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.default_income = 10
 
     @commands.command(aliases=['bal'], brief=BALANCE_BRIEF)
     async def balance(self, context):
         user = context.author
         embed = self.get_balance_embed(user)
+        if data.get_player(user).balance < DEFAULT_INCOME:
+            embed.description += f'\nUse `lott income` to earn up to **{DEFAULT_INCOME}** coins'
         await context.send(embed=embed)
 
     def get_balance_embed(self, user):
         coins = data.get_balance(user)
-        embed = discord.Embed(description=f'**Coins**: {coins}')
+        embed = discord.Embed(description='**Coins**: {:,}'.format(coins).replace(',', ' '))
         embed.set_footer(text=user.name, icon_url=user.avatar_url)
+        embed.color = colors.random_bright()
         return embed
 
     @commands.command(aliases=['in'], brief=INCOME_BRIEF)
@@ -27,17 +32,21 @@ class Economy(commands.Cog):
         user = context.author
         player = data.get_player(user)
 
-        no_coins = data.get_balance(context.author) == 0
-        no_tickets_bought = not player.paid_tickets
+        low_coins = player.balance < DEFAULT_INCOME
+        tickets_bought = player.paid_tickets
 
-        if no_coins and no_tickets_bought:
-            player.add_to_balance(self.default_income)
+        if low_coins and not tickets_bought:
+            player.add_to_balance(DEFAULT_INCOME - player.balance)
             embed = self.get_balance_embed(user)
             embed.title = "Here's some coins!"
-            await context.send(embed=embed)
             await self.bot.get_cog('Lottery').update_ticket_order_embeds(user)
         else:
-            await context.send("Come back when you're broke!")
+            embed = self.get_balance_embed(user)
+            if low_coins and tickets_bought:
+                embed.title = 'Wait until after the result is drawn!'
+            else:
+                embed.title = "Come back when you're broke!"
+        await context.send(embed=embed)
 
 
 def add_to(bot):
