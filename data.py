@@ -62,7 +62,7 @@ def add_ticket_order(user, coins, tickets):
     player = get_player(user)
     return player.add_ticket_order(coins, tickets)
 
-@tasks.loop(seconds=10)
+@tasks.loop(seconds=5)
 async def save_to_disk():
     with open(JSON_FILE, 'w') as f:
         data = {}
