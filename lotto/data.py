@@ -1,7 +1,7 @@
 import json
 import time
 from functools import partial
-from player import Player
+from lotto.player import Player
 from discord.ext import tasks
 
 JSON_FILE = 'disk.json'

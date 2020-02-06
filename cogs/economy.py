@@ -1,5 +1,5 @@
 import discord
-import data
+from lotto import data
 import colors
 from discord.ext import commands
 

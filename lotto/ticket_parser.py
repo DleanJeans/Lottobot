@@ -13,6 +13,18 @@ SHORTEN = '**Shorten**'
 COUNT = '**Count**'
 NOT_WITHIN = 'is not within `00` and `99`'
 
+def parse_coins(coins):
+    if coins[-1] == ',':
+        coins = coins[:-1].strip()
+    if coins in ['all', 'half']:
+        return coins
+    
+    try:
+        coins = int(float(coins))
+    except:
+        return None
+    return coins
+
 def backtick_every_word(string):
     return ' '.join(map('`{}`'.format, string.split(' ')))
 

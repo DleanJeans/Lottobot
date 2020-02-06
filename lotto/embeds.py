@@ -1,6 +1,6 @@
 import discord
-import data
-import ticket_parser
+from lotto import data
+from lotto import ticket_parser
 import emotes
 
 CAN_BUY_COLOR = discord.Color.blue()

@@ -2,13 +2,13 @@ import asyncio
 import discord
 import pytz
 
-import data
+from lotto import data
 import emotes
-import embeds
+from lotto import embeds
 import colors
-import ticket_parser
+from lotto import ticket_parser
 
-from player import Player
+from lotto.player import Player
 from datetime import datetime
 from lotto import ball_machine, draw_result
 from discord.ext import commands
@@ -77,14 +77,14 @@ class Lottery(commands.Cog):
         if not tickets:
             await self.send_instruction(context)
             return
+        
+        coins = ticket_parser.parse_coins(coins)
 
-        if coins[-1] == ',':
-            coins = coins[:-1].strip()
-        if coins.isdigit():
-            coins = int(coins)
-        elif coins == 'all':
+        if coins == 'all':
             coins = data.get_player(user).balance
-        else:
+        elif coins == 'half':
+            coins = data.get_player(user).balance / 2
+        elif coins == None:
             await self.send_instruction(context)
             return
         
