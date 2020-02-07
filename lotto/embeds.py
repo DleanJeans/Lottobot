@@ -3,7 +3,7 @@ import emotes
 import colors
 import lotto
 
-from lotto import data, ticket_parser
+from lotto import data, ticket_parser, as_coins
 
 CAN_BUY_COLOR = discord.Color.blue()
 CANNOT_BUY_COLOR = discord.Color.orange()
@@ -37,12 +37,6 @@ NEXT_DRAW_AT = 'Next Draw at'
 YOU_WON = 'You Won!'
 WELL_KINDA = 'Well, kinda...'
 CONGRATS = 'Congrats!'
-
-def as_coins(coins, bold=True, suffix=True):
-    output = '{:,}'.format(coins).replace(',', ' ')
-    if bold: output = f'**{output}**'
-    if suffix: output += ' coins'
-    return output
 
 def embed_ticket_order(user, order, announcing=False):
     player = data.get_player(user)

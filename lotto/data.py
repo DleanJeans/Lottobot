@@ -30,15 +30,19 @@ def clear_players_tickets():
         p.reset()
 
 def get_joined_players(context=None):
-    if context:
-        users = [mem for mem in context.guild.members if mem.id in players]
-        users = [user for user in users if is_player(user)]
-        all_players = [get_player(user) for user in users]
-    else:
-        all_players = list(players.values())
+    all_players = get_players_in_guild(context.guild) if context else list(players.values())
     joined_players = [p for p in all_players if p.has_joined()]
 
     return joined_players
+
+def get_players_in_guild(guild=None):
+    if not guild:
+        return list(players.values())
+
+    users = [mem for mem in guild.members if mem.id in players]
+    users = [user for user in users if is_player(user)]
+    all_players = [get_player(user) for user in users]
+    return all_players
 
 def is_player(user):
     return user.id in players

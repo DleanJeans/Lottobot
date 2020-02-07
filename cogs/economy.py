@@ -2,15 +2,18 @@ import discord
 import colors
 import lotto
 
-from lotto import data
+from lotto import data, as_coins
 from discord.ext import commands
 
 INCOME_BRIEF = f'Get {lotto.INCOME} coins if you start with less than that'
 BALANCE_BRIEF = 'Check your balance'
+RICH_BRIEF = 'Show Top 10 richest players in the server'
 
 HERES_SOME_COINS = "Here's some coins!"
 WAIT_FOR_RESULT = 'Wait until after the result is drawn!'
 COME_BACK = "Come back when you're broke!"
+
+RICH_PER_PAGE = 10
 
 class Economy(commands.Cog):
     def __init__(self, bot):
@@ -50,6 +53,29 @@ class Economy(commands.Cog):
                 embed.title = WAIT_FOR_RESULT
             else:
                 embed.title = COME_BACK
+        await context.send(embed=embed)
+    
+    @commands.command(brief=RICH_BRIEF)
+    async def rich(self, context):
+        if not context.guild: return
+
+        ranks = []
+        guild_players = data.get_players_in_guild(context.guild)[:RICH_PER_PAGE]
+        guild_players.sort(key=lambda p: p.balance, reverse=True)
+
+        for i, player in enumerate(guild_players):
+            user = self.bot.get_user(player.id)
+            coins = as_coins(player.balance, suffix=False)
+            rank = f'#{i+1:2} | {coins}'
+            if user:
+                rank += f' - {user.mention}'
+            ranks.append(rank)
+        
+        embed = discord.Embed()
+        embed.color = colors.random_bright()
+        embed.set_author(name='Richest players in the server')
+        embed.description = '\n'.join(ranks)
+
         await context.send(embed=embed)
 
 def add_to(bot):
