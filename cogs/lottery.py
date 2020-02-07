@@ -4,13 +4,12 @@ import pytz
 
 import emotes
 import colors
+import lotto
 
 from discord.ext import commands
 from datetime import datetime, timedelta
 from lotto.player import Player
-from lotto import data, embeds
-from lotto import ticket_parser
-from lotto import ball_machine, draw_result
+from lotto import data, embeds, ticket_parser, ball_machine
 
 BUY_INSTRUCTION = '''
 **Syntax**: `lott buy [coins], [numbers]`
@@ -48,7 +47,7 @@ WAIT_FOR_RESULT = 'Hold on a minute! The result is being announced right now!'
 NO_TICKETS = "You haven't bought any tickets yet!"
 LOTTERY_RESULT = 'Lottery Result'
 
-def ceil_datetime(dt, minutes=1):
+def ceil_datetime(dt, minutes=lotto.CYCLE_INTERVAL):
     delta = timedelta(minutes=minutes)
     return dt + (datetime.min - dt) % delta
 

@@ -9,6 +9,14 @@ PRIZES = list(zip(NAMES, MULTIPLIERS))
 INCOME = 10
 INCOME_TIP = f'Use `lott income` to earn up to **{INCOME}** coins'
 
+CYCLE_INTERVAL = 3
+
 def get_prize_name(prize):
     name, multi = prize
     return f'{name} (×{multi:02})'
+
+def as_coins(coins, bold=True, suffix=True):
+    output = '{:,}'.format(coins).replace(',', ' ')
+    if bold: output = f'**{output}**'
+    if suffix: output += ' coins'
+    return output
