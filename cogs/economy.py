@@ -1,12 +1,16 @@
 import discord
-from lotto import data
 import colors
+import lotto
+
+from lotto import data
 from discord.ext import commands
 
-DEFAULT_INCOME = 10
-
-INCOME_BRIEF = 'Get 10 coins if you start with no coins'
+INCOME_BRIEF = f'Get {lotto.INCOME} coins if you start with less than that'
 BALANCE_BRIEF = 'Check your balance'
+
+HERES_SOME_COINS = "Here's some coins!"
+WAIT_FOR_RESULT = 'Wait until after the result is drawn!'
+COME_BACK = "Come back when you're broke!"
 
 class Economy(commands.Cog):
     def __init__(self, bot):
@@ -16,8 +20,8 @@ class Economy(commands.Cog):
     async def balance(self, context):
         user = context.author
         embed = self.get_balance_embed(user)
-        if data.get_player(user).balance < DEFAULT_INCOME:
-            embed.description += f'\nUse `lott income` to earn up to **{DEFAULT_INCOME}** coins'
+        if data.get_player(user).balance < lotto.INCOME:
+            embed.description += '\n' + lotto.INCOME_TIP
         await context.send(embed=embed)
 
     def get_balance_embed(self, user):
@@ -32,22 +36,21 @@ class Economy(commands.Cog):
         user = context.author
         player = data.get_player(user)
 
-        low_coins = player.balance < DEFAULT_INCOME
+        low_coins = player.balance < lotto.INCOME
         tickets_bought = player.paid_tickets
 
         if low_coins and not tickets_bought:
-            player.add_to_balance(DEFAULT_INCOME - player.balance)
+            player.add_to_balance(lotto.INCOME - player.balance)
             embed = self.get_balance_embed(user)
-            embed.title = "Here's some coins!"
+            embed.title = HERES_SOME_COINS
             await self.bot.get_cog('Lottery').update_ticket_order_embeds(user)
         else:
             embed = self.get_balance_embed(user)
             if low_coins and tickets_bought:
-                embed.title = 'Wait until after the result is drawn!'
+                embed.title = WAIT_FOR_RESULT
             else:
-                embed.title = "Come back when you're broke!"
+                embed.title = COME_BACK
         await context.send(embed=embed)
-
 
 def add_to(bot):
     bot.add_cog(Economy(bot))

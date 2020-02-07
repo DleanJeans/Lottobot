@@ -28,7 +28,7 @@ def parse_coins(coins):
 def backtick_every_word(string):
     return ' '.join(map('`{}`'.format, string.split(' ')))
 
-def format_as_description(tickets, tickets_per_line=11):
+def format_as_description(tickets, tickets_per_line=10):
     tickets = list(set(tickets))
     tickets = sorted(tickets)
     full_list = ' '.join(map(BALL_FORMAT, tickets))
@@ -143,6 +143,10 @@ def detect_parse(ticket):
             return new_tickets
     
     global first_error
-    error_msg = f'WTF is this bruh?' if first_error else 'And this?'
-    first_error = False
-    raise ValueError(f'{error_msg} `{ticket}`')
+    if ticket == '-':
+        error_msg = 'Try putting `-` without space like `10-20` instead of `10 - 20`'
+    else:
+        error_msg = f'What is this bruh?' if first_error else 'And this?'
+        error_msg += f' `{ticket}`'
+        first_error = False
+    raise ValueError(error_msg)

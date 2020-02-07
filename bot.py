@@ -13,8 +13,11 @@ lottery.add_to(bot)
 async def on_ready():
     status = 'lott help'
     await bot.change_presence(status=discord.Status.online, activity=discord.Game(status))
-    print('Logged in as', bot.user)
+    print('Logged in as', bot.user.name, f'(#{bot.user.discriminator})')
+
+PLUS = False
+env_name = 'PLUS_TOKEN' if PLUS else 'BOT_TOKEN'
 
 load_dotenv()
-TOKEN = os.getenv('BOT_TOKEN')
+TOKEN = os.getenv(env_name)
 bot.run(TOKEN)

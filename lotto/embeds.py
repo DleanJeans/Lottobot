@@ -1,7 +1,9 @@
 import discord
-from lotto import data
-from lotto import ticket_parser
 import emotes
+import colors
+import lotto
+
+from lotto import data, ticket_parser
 
 CAN_BUY_COLOR = discord.Color.blue()
 CANNOT_BUY_COLOR = discord.Color.orange()
@@ -32,8 +34,15 @@ BEFORE = 'Before'
 SPENT = 'Spent'
 NEXT_DRAW_AT = 'Next Draw at'
 
-def as_coins(coins):
-    return '**{:,}** coins'.format(coins).replace(',', ' ')
+YOU_WON = 'You Won!'
+WELL_KINDA = 'Well, kinda...'
+CONGRATS = 'Congrats!'
+
+def as_coins(coins, bold=True, suffix=True):
+    output = '{:,}'.format(coins).replace(',', ' ')
+    if bold: output = f'**{output}**'
+    if suffix: output += ' coins'
+    return output
 
 def embed_ticket_order(user, order, announcing=False):
     player = data.get_player(user)
@@ -81,8 +90,8 @@ def embed_ticket_order(user, order, announcing=False):
             reason = MAX_TICKET_COUNT % player.get_max_tickets()
         elif not player.can_afford(order):
             reason = CANNOT_AFFORD % as_coins(-balance_after)
-            if balance < 10:
-                reason += '\nUse `lott income` to get up to **10** coins!'
+            if balance < lotto.INCOME:
+                reason += '\n' + lotto.INCOME_TIP
         elif announcing:
             reason = RESULT_ANNOUNCING
         embed.add_field(name=CANNOT_BUY_FIELD, value=reason)
@@ -119,6 +128,40 @@ def embed_paid_tickets(user, next_draw=None):
 
     return embed
 
-def add_coin_fields(embed, coin_fields):
-    for name, coins in coin_fields.items():
-        embed.add_field(name=name, value=as_coins(coins))
+def embed_winner(user, winning_tickets):
+    player = data.get_player(user)
+
+    winner_embed = discord.Embed(title=YOU_WON) 
+    winner_embed.set_thumbnail(url=user.avatar_url)
+    winner_embed.color = colors.random_bright()
+
+    for prize, tickets in zip(lotto.PRIZES, winning_tickets):
+        prize_name = lotto.get_prize_name(prize)
+        _, multi = prize
+        values = []
+        for number, worth in tickets[::-1]:
+            prize_coins = worth * multi
+            worth = as_coins(worth, suffix=False)
+            prize_coins = as_coins(prize_coins)
+            value = f'`{number:02}`: {worth} → {prize_coins}'
+            values.append(value)
+        if values:
+            field = dict(name=prize_name, value='\n'.join(values))
+            winner_embed.add_field(**field)
+    
+    total_spendings = player.get_total_spendings()
+    initial_balance = player.balance + total_spendings - player.total_winnings
+    change = player.total_winnings - total_spendings
+    sign = '+' if change >= 0 else ''
+    value = (
+        f' {as_coins(initial_balance)}\n'
+        f'-{as_coins(total_spendings)}\n'
+        f'+{as_coins(player.total_winnings)}\n'
+        f'({sign}{as_coins(change)})\n'
+        f'={as_coins(player.balance)}'
+    )
+    winner_embed.add_field(name=BALANCE, value=value)
+
+    winner_embed.title += ' ' + (WELL_KINDA if change <= 0 else CONGRATS)
+
+    return winner_embed

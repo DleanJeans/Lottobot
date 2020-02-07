@@ -5,9 +5,6 @@ from lotto.player import Player
 from discord.ext import tasks
 
 JSON_FILE = 'disk.json'
-COINS = 'coins'
-PAID_TICKETS = 'paid_tickets'
-TICKET_ORDERS = 'ticket_orders'
 
 def load_from_disk():
     with open(JSON_FILE, 'r') as f:
