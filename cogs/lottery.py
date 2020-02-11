@@ -1,6 +1,6 @@
 import asyncio
 import discord
-import pytz
+import math
 
 import emotes
 import colors
@@ -47,6 +47,12 @@ WAIT_FOR_RESULT = 'Hold on a minute! The result is being announced right now!'
 NO_TICKETS = "You haven't bought any tickets yet!"
 LOTTERY_RESULT = 'Lottery Result'
 
+E_TIP = '**Tip**: Try `e` for big numbers. `e6` for 6 zeros. `1e6` is 1 million!'
+
+ALL = 'all'
+HALF = 'half'
+SIX_ZEROES = '0' * 6
+
 def ceil_datetime(dt, minutes=lotto.CYCLE_INTERVAL):
     delta = timedelta(minutes=minutes)
     return dt + (datetime.min - dt) % delta
@@ -86,13 +92,39 @@ class Lottery(commands.Cog):
         
         coins = ticket_parser.parse_coins(coins)
 
-        if coins == 'all':
-            coins = data.get_player(user).balance
-        elif coins == 'half':
-            coins = data.get_player(user).balance / 2
+        tip = None
+        if SIX_ZEROES in str(coins):
+            tip = E_TIP
+        
+        coins_str = str(coins).lower()
+
+        player = data.get_player(user)
+        if coins_str in [ALL, HALF]:
+            balance = player.balance
+            if balance == 0:
+                await content.send('You have **0** coins!')
+                return
+            if coins_str == ALL:
+                coins = balance
+            elif coins_str == HALF:
+                coins = balance / 2
         elif coins == None:
             await self.send_instruction(context)
             return
+        
+        try:
+            new_tickets = ticket_parser.parse_list(tickets)
+        except ValueError as e:
+            response = f'{user.mention}\n'
+            response += '\n'.join(e.args)
+            await context.send(response)
+            return
+        
+        ticket_count = len(new_tickets)
+        total_cost = coins * ticket_count
+        divided_cost = math.floor(coins / ticket_count)
+        if total_cost > player.balance and divided_cost <= player.balance:
+            coins = divided_cost
         
         if coins <= 0:
             await context.send(MORE_THAN_ZERO)
@@ -105,16 +137,8 @@ class Lottery(commands.Cog):
             while self.announcing:
                 await asyncio.sleep(1)
         
-        try:
-            new_tickets = ticket_parser.parse_list(tickets)
-        except ValueError as e:
-            response = f'{user.mention}\n'
-            response += '\n'.join(e.args)
-            await context.send(response)
-            return
-        
         order = data.add_ticket_order(user, coins, new_tickets)
-        await self.send_ticket_order_embed(context, user, order, was_announcing)
+        await self.send_ticket_order_embed(context, user, order, was_announcing, tip)
     
     @buy.error
     async def buy_error(self, context, error):
@@ -123,9 +147,13 @@ class Lottery(commands.Cog):
         else:
             raise
 
-    async def send_ticket_order_embed(self, context, user, order, mention=False):
+    async def send_ticket_order_embed(self, context, user, order, mention=False, tip=None):
         embed = embeds.embed_ticket_order(user, order)
-        content = user.mention if mention else None
+        content = user.mention if mention else ''
+        if tip:
+            if content:
+                content += '\n'
+            content += tip
 
         message = await context.send(content=content, embed=embed)
         order.message = message
@@ -134,6 +162,8 @@ class Lottery(commands.Cog):
         if can_buy:
             await message.add_reaction(emotes.MONEY_WINGS)
         await message.add_reaction(emotes.X)
+
+        return message
 
     def player_can_buy(self, user_or_player, order):
         if type(user_or_player) is Player:
