@@ -32,8 +32,11 @@ class Player:
         return self.can_afford(order) and self.can_hold_more_tickets(order)
 
     def get_saved_data(self):
-        net_worth = self.balance + self.get_total_spendings()
+        net_worth = self.get_net_worth()
         return { 'balance': net_worth }
+
+    def get_net_worth(self):
+        return self.balance + self.get_total_spendings()
 
     def has_joined(self):
         return self.ticket_orders or self.paid_tickets

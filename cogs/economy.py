@@ -61,13 +61,14 @@ class Economy(commands.Cog):
 
         ranks = []
         guild_players = data.get_players_in_guild(context.guild)[:RICH_PER_PAGE]
-        guild_players.sort(key=lambda p: p.balance, reverse=True)
+        guild_players.sort(key=lambda p: p.get_net_worth(), reverse=True)
 
         for i, player in enumerate(guild_players):
-            if player.balance < lotto.INCOME ** 2:
+            net_worth = player.get_net_worth()
+            if net_worth < lotto.INCOME ** 2:
                 continue
             user = self.bot.get_user(player.id)
-            coins = as_coins(player.balance, suffix=False)
+            coins = as_coins(net_worth, suffix=False)
             rank = f'#{i+1:2} | {coins}'
             if user:
                 rank += f' - {user.mention}'
