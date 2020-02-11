@@ -64,6 +64,8 @@ class Economy(commands.Cog):
         guild_players.sort(key=lambda p: p.balance, reverse=True)
 
         for i, player in enumerate(guild_players):
+            if player.balance < lotto.INCOME ** 2:
+                continue
             user = self.bot.get_user(player.id)
             coins = as_coins(player.balance, suffix=False)
             rank = f'#{i+1:2} | {coins}'
