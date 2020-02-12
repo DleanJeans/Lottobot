@@ -39,7 +39,7 @@ LOTTERY_RESULT = 'Lottery Result'
 
 E_TIP = '**Tip**: Try `e` for big numbers. `e6` for 6 zeros. `1e6` is 1 million!'
 
-HAVE_NO_COINS = 'You have **0** coins!'
+RESULT_BRIEF = 'Show the last lottery result'
 
 TRY_AGAIN_LATER = 'Try again later!'
 
@@ -77,7 +77,7 @@ class Lottery(commands.Cog):
         embed.description = BUY_INSTRUCTION
         await context.send(embed=embed)
     
-    @commands.command()
+    @commands.command(aliases=['res', 'rslt', 'rs'], brief=RESULT_BRIEF)
     async def result(self, context):
         embed = embeds.create()
         if self.last_result and not self.announcing:

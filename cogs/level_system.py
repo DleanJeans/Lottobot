@@ -5,12 +5,14 @@ import lotto
 from discord.ext import commands
 from lotto import data, level, embeds, as_coins
 
+LEVEL_BRIEF = 'Show your current level and XP points'
+
 class LevelSystem(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.players_stored_xp = {}
     
-    @commands.command(aliases=['lvl', 'lv'])
+    @commands.command(aliases=['lvl', 'lv'], brief=LEVEL_BRIEF)
     async def level(self, context):
         user = context.author
         embed = embeds.for_level(user)
@@ -42,11 +44,6 @@ class LevelSystem(commands.Cog):
             lines += [INCOME + as_coins(player.get_income(), backtick=True, suffix=False)]
             embed.description = '\n'.join(lines)
             await context.send(embed=embed)
-    
-    @commands.command()
-    async def xp(self, context, xp:int):
-        user = context.author
-        await self.add_xp(context, user, xp)
 
 LEVEL_UP = '**LEVEL UP!** `%s → %s`'
 CAN_BUY = 'You can now buy `%s` tickets!'

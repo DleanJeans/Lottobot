@@ -20,8 +20,8 @@ async def on_ready():
     await bot.change_presence(status=discord.Status.online, activity=discord.Game(status))
     print('Logged in as', bot.user.name, f'(#{bot.user.discriminator})')
 
-PLUS = True
-env_name = 'PLUS_TOKEN' if PLUS else 'BOT_TOKEN'
+TESTING = False
+env_name = 'TESTING_TOKEN' if TESTING else 'BOT_TOKEN'
 
 load_dotenv()
 TOKEN = os.getenv(env_name)

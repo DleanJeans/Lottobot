@@ -43,7 +43,7 @@ class Economy(commands.Cog):
         embed = embeds.create(footer_user=user, description=description)
         return embed
 
-    @commands.command(aliases=['in'], brief=INCOME_BRIEF)
+    @commands.command(aliases=['in', 'inc'], brief=INCOME_BRIEF)
     async def income(self, context):
         user = context.author
         player = data.get_player(user)
