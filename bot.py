@@ -5,7 +5,10 @@ from discord.ext.commands import Bot
 from dotenv import load_dotenv
 from cogs import economy, lottery
 
-bot = Bot(command_prefix=['lott ', 'lot ', 'lo '])
+prefixes = ['lott ', 'lot ', 'lo ']
+for p in list(prefixes):
+    prefixes.append(p.capitalize())
+bot = Bot(command_prefix=prefixes)
 economy.add_to(bot)
 lottery.add_to(bot)
 
