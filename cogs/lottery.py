@@ -122,7 +122,7 @@ class Lottery(commands.Cog):
         
         ticket_count = len(new_tickets)
         total_cost = coins * ticket_count
-        divided_cost = math.floor(coins / ticket_count)
+        divided_cost = math.floor(coins // ticket_count)
         if total_cost > player.balance and divided_cost <= player.balance:
             coins = divided_cost
         
