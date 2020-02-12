@@ -32,12 +32,13 @@ def format_as_description(tickets, tickets_per_line=10):
     tickets = list(set(tickets))
     tickets = sorted(tickets)
     full_list = ' '.join(map(BALL_FORMAT, tickets))
-    full_list = '\n'.join(textwrap.wrap(full_list, width=3*tickets_per_line))
     short_list = shorten_list(tickets)
-    
+    list_shorten = short_list != full_list
+
+    full_list = '\n'.join(textwrap.wrap(full_list, width=3*tickets_per_line))
     description = f'```{full_list}```\n'
 
-    if short_list != full_list:
+    if list_shorten:
         short_list = backtick_every_word(short_list)
         description += f'{SHORTEN}: {short_list}\n'
     
