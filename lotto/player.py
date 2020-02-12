@@ -1,3 +1,6 @@
+import lotto
+from lotto import level
+
 class TicketOrder:
     def __init__(self, coins, tickets):
         self.coins = coins
@@ -8,18 +11,38 @@ class TicketOrder:
         return self.coins * len(self.tickets)
 
 class Player:
-    def __init__(self, id, balance=0):
+    def __init__(self, id, balance=0, xp=0):
         self.id = id
         self.balance = balance
+        self.xp = xp
         self.reset()
+        self.clear_level_up()
 
     def reset(self):
         self.ticket_orders = []
         self.paid_tickets = {}
         self.total_winnings = 0
     
+    def clear_level_up(self):
+        self.level_up = ()
+    
+    def get_income(self):
+        return self.get_level() * 10
+
+    def _add_xp(self, xp):
+        old_level = self.get_level()
+        self.xp += xp
+        new_level = self.get_level()
+
+        if new_level > old_level:
+            self.level_up = (old_level, new_level)
+
+    def get_level(self):
+        return level.xp_to_level(self.xp)
+    
     def get_max_tickets(self):
-        return 20
+        lvl = self.get_level()
+        return lotto.get_max_tickets_for(lvl)
     
     def can_hold_more_tickets(self, order):
         tickets_after_buying = set(list(self.paid_tickets.keys()) + order.tickets)
@@ -32,8 +55,8 @@ class Player:
         return self.can_afford(order) and self.can_hold_more_tickets(order)
 
     def get_saved_data(self):
-        net_worth = self.get_net_worth()
-        return { 'balance': net_worth }
+        net_worth = self.balance + self.get_total_spendings()
+        return { 'balance': net_worth, 'xp': self.xp }
 
     def get_net_worth(self):
         return self.balance + self.get_total_spendings()

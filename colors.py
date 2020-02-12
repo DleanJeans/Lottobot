@@ -8,7 +8,7 @@ color_factories = [(name, method) for name, method in color_factories if 'from' 
 all_colors = [method for _, method in color_factories]
 brights = [method for name, method in color_factories if 'dark' not in name and 'light' not in name]
 
-def random_bright(exceptions=None):
+def random(exceptions=None):
     if type(exceptions) is not list:
         exceptions = [exceptions]
     while True:

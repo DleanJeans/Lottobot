@@ -5,38 +5,28 @@ import math
 import emotes
 import colors
 import lotto
+import cogs
 
 from discord.ext import commands
 from datetime import datetime, timedelta
 from lotto.player import Player
-from lotto import data, embeds, ticket_parser, ball_machine
+from lotto import data, embeds, ticket_parser, ball_machine, level
 
 BUY_INSTRUCTION = '''
 **Syntax**: `lott buy [coins], [numbers]`
 `numbers` have to be within `00` to `99`
-_Example_: `lott buy 10, 20 30 40` 
-buys 3 tickets `20` `30` and `40`
-each costs **10** coins, totaling **30** coins
-'''
 
-BUY_SHORTHANDS = '''
+**Example**: `lott buy 10, 20 30 40` 
+buys 3 tickets `20` `30` and `40` 
+with **10** coins, totaling **30** coins
+the coins will be split if it's over your balance
+
 **Shorthands**:
-`a-b`: includes all the number between `a` and `b` and themselves
-_Example_: `6-9` = `06` `07` `08` `09`
-
-`~a`: includes `a` and its reversed number
-_Example_: `~42` = `24` `42`
-
-`a+(b)`: includes `a` and `b` adjecent numbers in each direction
-`b` is `1` by default if not given
-can be combined with `~`
-_Example_: 
-`80+` = `79` `80` `81` 
-`80+5` = `75-85`
-`~60+5` = `06` `55-65`
+`42+` → `41 42 43`
+`~42` → `42 24`
 '''
 
-BUY_DESCRIPTION = f'{BUY_INSTRUCTION}{BUY_SHORTHANDS}'.replace('*', '').replace('`', '').replace('_', '')
+BUY_DESCRIPTION = f'{BUY_INSTRUCTION}'.replace('*', '').replace('`', '').replace('_', '')
 BUY_BRIEF = 'Buy tickets for this cycle'
 
 TICKETS_BRIEF = 'Show all your tickets'
@@ -48,6 +38,10 @@ NO_TICKETS = "You haven't bought any tickets yet!"
 LOTTERY_RESULT = 'Lottery Result'
 
 E_TIP = '**Tip**: Try `e` for big numbers. `e6` for 6 zeros. `1e6` is 1 million!'
+
+HAVE_NO_COINS = 'You have **0** coins!'
+
+TRY_AGAIN_LATER = 'Try again later!'
 
 ALL = 'all'
 HALF = 'half'
@@ -61,6 +55,7 @@ class Lottery(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.reset()
+        self.last_result = None
     
     def reset(self):
         self.scheduled = False
@@ -78,8 +73,18 @@ class Lottery(commands.Cog):
     
     async def send_instruction(self, context):
         embed = discord.Embed()
-        embed.color = colors.random_bright()
+        embed.color = colors.random()
         embed.description = BUY_INSTRUCTION
+        await context.send(embed=embed)
+    
+    @commands.command()
+    async def result(self, context):
+        embed = embeds.create()
+        if self.last_result and not self.announcing:
+            embed.description = '```%s```' % self.last_result
+        else:
+            embed.description = TRY_AGAIN_LATER
+
         await context.send(embed=embed)
 
     @commands.command(aliases=['b'], brief=BUY_BRIEF, description=BUY_DESCRIPTION)
@@ -99,11 +104,11 @@ class Lottery(commands.Cog):
         coins_str = str(coins).lower()
 
         player = data.get_player(user)
+        balance = player.balance
+
         if coins_str in [ALL, HALF]:
-            balance = player.balance
             if balance == 0:
-                await content.send('You have **0** coins!')
-                return
+                balance = player.get_income()
             if coins_str == ALL:
                 coins = balance
             elif coins_str == HALF:
@@ -123,7 +128,7 @@ class Lottery(commands.Cog):
         ticket_count = len(new_tickets)
         total_cost = coins * ticket_count
         divided_cost = math.floor(coins // ticket_count)
-        if total_cost > player.balance and divided_cost <= player.balance:
+        if total_cost > balance and divided_cost <= balance:
             coins = divided_cost
         
         if coins <= 0:
@@ -148,7 +153,7 @@ class Lottery(commands.Cog):
             raise
 
     async def send_ticket_order_embed(self, context, user, order, mention=False, tip=None):
-        embed = embeds.embed_ticket_order(user, order)
+        embed = embeds.for_ticket_order(user, order)
         content = user.mention if mention else ''
         if tip:
             if content:
@@ -179,7 +184,7 @@ class Lottery(commands.Cog):
         user = context.author
         player = data.get_player(user)
         if player.paid_tickets or player.ticket_orders:
-            embed = embeds.embed_paid_tickets(user, self.next_draw)
+            embed = embeds.for_paid_tickets(user, self.next_draw)
             message = await context.send(embed=embed)
             await message.add_reaction(emotes.X)
 
@@ -194,12 +199,11 @@ class Lottery(commands.Cog):
         joined_players = data.get_joined_players(context)
         result = ball_machine.draw()
 
-        embed = discord.Embed(title=LOTTERY_RESULT)
-        embed.timestamp = self.next_draw
+        embed = discord.Embed(title=LOTTERY_RESULT, timestamp=self.next_draw)
 
         message = None
         while True:
-            embed.color = colors.random_bright(embed.color)
+            embed.color = colors.random(embed.color)
             embed.description = '```%s```' % result.reveal()
 
             if not message:
@@ -216,6 +220,7 @@ class Lottery(commands.Cog):
         await self.announce_winners(context, joined_players, result)
 
         self.reset()
+        self.last_result = result
     
     def pay_out_winners(self, joined_players, result):
         for player in joined_players:
@@ -226,6 +231,10 @@ class Lottery(commands.Cog):
                 _, multi = result.last_prize
                 coins_won = won * multi
                 player.pay_prize(coins_won)
+
+                multi_index = lotto.MULTIPLIERS.index(multi)
+                xp_for_prize = level.PRIZES_XP[multi_index]
+                self.bot.get_cog(cogs.LEVEL_SYSTEM).store_xp(player, xp_for_prize)
     
     async def announce_winners(self, context, joined_players, result):
         for player in joined_players:
@@ -238,11 +247,13 @@ class Lottery(commands.Cog):
 
             if is_list_empty(winning_tickets): continue
 
-            winner_embed = embeds.embed_winner(user, winning_tickets)
+            winner_embed = embeds.for_winner(user, winning_tickets)
             winner_embed.timestamp = self.next_draw
 
             message_args = dict(content=user.mention, embed=winner_embed)
             await context.send(**message_args) 
+
+            await self.bot.get_cog(cogs.LEVEL_SYSTEM).add_stored_xp(context)
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
@@ -269,10 +280,13 @@ class Lottery(commands.Cog):
         player = data.get_player(user)
         order = player.find_order_by_message(message)
         if order:
+            if not player.paid_tickets:
+                await self.bot.get_cog(cogs.LEVEL_SYSTEM).add_xp(message.channel, player, level.BUY_XP)
+            
             player.buy_ticket_order(order)
             player.remove_order(message)
 
-            embed = embeds.embed_paid_tickets(user, self.next_draw)
+            embed = embeds.for_paid_tickets(user, self.next_draw)
             
             await message.edit(embed=embed)
             await message.remove_reaction(emotes.MONEY_WINGS, self.bot.user)
@@ -317,7 +331,7 @@ class Lottery(commands.Cog):
             message = discord.utils.get(self.bot.cached_messages, id=message.id)
             order.message = message
 
-            new_embed = embeds.embed_ticket_order(user, order, self.announcing)
+            new_embed = embeds.for_ticket_order(user, order, self.announcing)
             await message.edit(embed=new_embed)
 
             can_buy = self.player_can_buy(player, order)

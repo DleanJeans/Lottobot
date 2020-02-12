@@ -1,5 +1,6 @@
 import json
 import time
+import discord
 from functools import partial
 from lotto.player import Player
 from discord.ext import tasks
@@ -47,7 +48,13 @@ def get_players_in_guild(guild=None):
 def is_player(user):
     return user.id in players
 
+def get_user(bot, player):
+    if type(player) is discord.User: return player
+    return bot.get_user(player.id)
+
 def get_player(user):
+    if type(user) is Player: return user
+
     if user.id not in players:
         player = Player(user.id)
         players[user.id] = player

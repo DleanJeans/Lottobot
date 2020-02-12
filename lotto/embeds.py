@@ -3,7 +3,7 @@ import emotes
 import colors
 import lotto
 
-from lotto import data, ticket_parser, as_coins
+from lotto import data, ticket_parser, level, as_coins
 
 CAN_BUY_COLOR = discord.Color.blue()
 CANNOT_BUY_COLOR = discord.Color.orange()
@@ -22,8 +22,8 @@ COST = 'Cost'
 
 REACTIONS = 'Reactions'
 TICKET_COUNT = 'Ticket Count'
-TICKET_ORDER_OF = '\'s Ticket Order'
-TICKETS_OF = '\'s Tickets'
+TICKET_ORDER_OF = 'Ticket Order of '
+TICKETS_OF = 'Tickets of '
 
 CANNOT_AFFORD = f'You\'re %s short!'
 MAX_TICKET_COUNT = f'Your max ticket count is: **%s**'
@@ -38,17 +38,25 @@ YOU_WON = 'You Won!'
 WELL_KINDA = 'Well, kinda...'
 CONGRATS = 'Congrats!'
 
-def embed_ticket_order(user, order, announcing=False):
+def create(footer_user=None, **kwargs):
+    embed = discord.Embed(**kwargs)
+    if 'color' not in kwargs:
+        embed.color = colors.random()
+    if footer_user:
+        user = footer_user
+        embed.set_footer(text=user.name, icon_url=user.avatar_url)
+    return embed
+
+def for_ticket_order(user, order, announcing=False):
     player = data.get_player(user)
 
-    title = user.name + TICKET_ORDER_OF
+    title = TICKET_ORDER_OF + user.name
     description = ticket_parser.format_as_description(order.tickets)
 
     can_buy = player.can_buy(order) and not announcing
     color = CAN_BUY_COLOR if can_buy else CANNOT_BUY_COLOR
 
-    embed = discord.Embed(title=title, description=description, color=color)
-    embed.set_footer(text=user.name, icon_url=user.avatar_url)
+    embed = create(title=title, description=description, color=color, footer_user=user)
 
     total_cost = order.total_cost()
 
@@ -84,24 +92,25 @@ def embed_ticket_order(user, order, announcing=False):
             reason = MAX_TICKET_COUNT % player.get_max_tickets()
         elif not player.can_afford(order):
             reason = CANNOT_AFFORD % as_coins(-balance_after)
-            if balance < lotto.INCOME:
-                reason += '\n' + lotto.INCOME_TIP
+            income = player.get_income()
+            if balance < income:
+                reason += '\n' + lotto.INCOME_TIP + as_coins(income)
         elif announcing:
             reason = RESULT_ANNOUNCING
         embed.add_field(name=CANNOT_BUY_FIELD, value=reason)
 
     return embed
 
-def embed_paid_tickets(user, next_draw=None):
+def for_paid_tickets(user, next_draw=None):
     player = data.get_player(user)
 
-    title = user.name + TICKETS_OF
+    title = TICKETS_OF + user.name
 
-    embed = discord.Embed(title=title, color=discord.Color.green())
+    embed = create(title=title, color=discord.Color.green())
 
     tickets_by_price = player.group_paid_tickets()
     for price, tickets in tickets_by_price.items():
-        desc = ticket_parser.format_as_description(tickets, 10)
+        desc = ticket_parser.format_as_description(tickets)
         embed.add_field(name=as_coins(price), value=desc)
 
     spendings = player.get_total_spendings()
@@ -122,12 +131,11 @@ def embed_paid_tickets(user, next_draw=None):
 
     return embed
 
-def embed_winner(user, winning_tickets):
+def for_winner(user, winning_tickets):
     player = data.get_player(user)
 
-    winner_embed = discord.Embed(title=YOU_WON) 
+    winner_embed = create(title=YOU_WON, color=colors.random()) 
     winner_embed.set_thumbnail(url=user.avatar_url)
-    winner_embed.color = colors.random_bright()
 
     for prize, tickets in zip(lotto.PRIZES, winning_tickets):
         prize_name = lotto.get_prize_name(prize)
@@ -159,3 +167,17 @@ def embed_winner(user, winning_tickets):
     winner_embed.title += ' ' + (WELL_KINDA if change <= 0 else CONGRATS)
 
     return winner_embed
+
+def for_level(user):
+    player = data.get_player(user)
+    lvl = player.get_level()
+    next_lvl = lvl + 1
+    xp = player.xp
+    gap = level.gap(lvl)
+    total_xp_last_lvl = level.xp_for_level(lvl-1)
+    xp_this_lvl = xp - total_xp_last_lvl
+
+    embed = create(footer_user=user)
+    embed.description = f'**Level {lvl}**: `{xp_this_lvl}/{gap} XP`'
+
+    return embed

@@ -3,14 +3,16 @@ import discord
 
 from discord.ext.commands import Bot
 from dotenv import load_dotenv
-from cogs import economy, lottery
+from cogs import economy, lottery, level_system
 
 prefixes = ['lott ', 'lot ', 'lo ']
 for p in list(prefixes):
     prefixes.append(p.capitalize())
+
 bot = Bot(command_prefix=prefixes)
 economy.add_to(bot)
 lottery.add_to(bot)
+level_system.add_to(bot)
 
 @bot.event
 async def on_ready():
@@ -18,7 +20,7 @@ async def on_ready():
     await bot.change_presence(status=discord.Status.online, activity=discord.Game(status))
     print('Logged in as', bot.user.name, f'(#{bot.user.discriminator})')
 
-PLUS = False
+PLUS = True
 env_name = 'PLUS_TOKEN' if PLUS else 'BOT_TOKEN'
 
 load_dotenv()
