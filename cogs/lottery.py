@@ -256,6 +256,7 @@ class Lottery(commands.Cog):
         if str(reaction) == emotes.X:
             await self.cancel_order(player, message)
         elif str(reaction) == emotes.MONEY_WINGS:
+            if self.announcing: return
             self.schedule_next_draw(message)
             await self.buy_order(user, message)
             await self.wait_to_draw()
