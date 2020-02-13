@@ -12,7 +12,10 @@ CYCLE_INTERVAL = 2
 
 def get_prize_name(prize):
     name, multi = prize
-    return f'{name} (×{multi:02})'
+    output = f'{name}'
+    if multi:
+        output += f' (×{multi:02})'
+    return output
 
 def as_coins(coins, bold=True, suffix=True, backtick=False):
     bold = not backtick

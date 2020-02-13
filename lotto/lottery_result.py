@@ -17,13 +17,14 @@ def divide_balls(balls):
     tiered.reverse()
     return tiered
 
-class DrawResult:
+class LotteryResult:
     def __init__(self, balls):
         self.balls = balls
         self.revealed_balls = []
         self.displayed_balls = []
         self.revealed = 0
         self.last_revealed = None
+        self.timestamp = None
     
     def revealed_all(self):
         return self.revealed >= lotto.TOTAL_BALLS

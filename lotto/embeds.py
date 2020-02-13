@@ -22,8 +22,8 @@ COST = 'Cost'
 
 REACTIONS = 'Reactions'
 TICKET_COUNT = 'Ticket Count'
-TICKET_ORDER_OF = 'Ticket Order of '
-TICKETS_OF = 'Tickets of '
+TICKET_ORDER_OF = 'Ticket Order for '
+TICKETS_OF = 'Tickets for '
 
 CANNOT_AFFORD = f'You\'re %s short!'
 MAX_TICKET_COUNT = f'Your max ticket count is: **%s**'

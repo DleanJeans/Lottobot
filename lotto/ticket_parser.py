@@ -41,10 +41,6 @@ def format_as_description(tickets, tickets_per_line=10):
     if list_shorten:
         short_list = backtick_every_word(short_list)
         description += f'{SHORTEN}: {short_list}\n'
-    
-    ticket_count = len(tickets)
-    if ticket_count > 1:
-        description += f'{COUNT}: {ticket_count}\n'
 
     return description
 

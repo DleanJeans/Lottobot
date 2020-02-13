@@ -41,7 +41,7 @@ E_TIP = '**Tip**: Try `e` for big numbers. `e6` for 6 zeros. `1e6` is 1 million!
 
 RESULT_BRIEF = 'Show the last lottery result'
 
-TRY_AGAIN_LATER = 'Try again later!'
+TRY_AGAIN_LATER = 'The bot is starting up!\nGo buy a ticket and try again later!'
 
 ALL = 'all'
 HALF = 'half'
@@ -79,9 +79,31 @@ class Lottery(commands.Cog):
     
     @commands.command(aliases=['res', 'rslt', 'rs'], brief=RESULT_BRIEF)
     async def result(self, context):
-        embed = embeds.create()
+        embed = embeds.create(title='Last Lottery Result')
         if self.last_result and not self.announcing:
             embed.description = '```%s```' % self.last_result
+            embed.timestamp = self.last_result.timestamp
+
+            user = context.author
+            player = data.get_player(user)
+            tickets = player.last_tickets
+            if not tickets:
+                your_tickets = 'No tickets bought last time.'
+            else:
+                your_tickets = []
+                for t in tickets.keys():
+                    prize = self.last_result.get_ticket_prize(t)
+                    if not prize:
+                        prize = 'No Prize', 0
+                    tickets[t] = prize
+                tickets = { t: p for t, p in sorted(tickets.items(), key=lambda item: item[1][1], reverse=True) }
+
+                for t, prize in tickets.items():
+                    prize = lotto.get_prize_name(prize)
+                    your_tickets += [f'{t:02} - {prize}']
+                your_tickets = '\n'.join(your_tickets)
+                your_tickets = f'```{your_tickets}```'
+            embed.add_field(name='Your Tickets', value=your_tickets)
         else:
             embed.description = TRY_AGAIN_LATER
 
@@ -144,6 +166,9 @@ class Lottery(commands.Cog):
         
         order = data.add_ticket_order(user, coins, new_tickets)
         await self.send_ticket_order_embed(context, user, order, was_announcing, tip)
+
+        if player.balance == 0:
+            await self.bot.get_cog(cogs.ECONOMY).income(context)
     
     @buy.error
     async def buy_error(self, context, error):
@@ -198,6 +223,7 @@ class Lottery(commands.Cog):
 
         joined_players = data.get_joined_players(context)
         result = ball_machine.draw()
+        result.timestamp = self.next_draw
 
         embed = discord.Embed(title=LOTTERY_RESULT, timestamp=self.next_draw)
 

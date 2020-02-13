@@ -15,10 +15,12 @@ class Player:
         self.id = id
         self.balance = balance
         self.xp = xp
+        self.paid_tickets = {}
         self.reset()
         self.clear_level_up()
 
     def reset(self):
+        self.last_tickets = self.paid_tickets
         self.ticket_orders = []
         self.paid_tickets = {}
         self.total_winnings = 0
