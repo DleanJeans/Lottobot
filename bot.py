@@ -8,6 +8,7 @@ from cogs import economy, lottery, level_system
 prefixes = ['lott ', 'lot ', 'lo ']
 for p in list(prefixes):
     prefixes.append(p.capitalize())
+    prefixes.append(p.strip())
 
 bot = Bot(command_prefix=prefixes)
 economy.add_to(bot)
