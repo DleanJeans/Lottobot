@@ -1,6 +1,7 @@
 import discord
 import colors
 import lotto
+import cogs
 
 from discord.ext import commands
 from lotto import data, level, embeds, as_coins
@@ -13,8 +14,9 @@ class LevelSystem(commands.Cog):
         self.players_stored_xp = {}
     
     @commands.command(aliases=['lvl', 'lv'], brief=LEVEL_BRIEF)
-    async def level(self, context):
-        user = context.author
+    async def level(self, context, member=None):
+        user = await cogs.convert_to_user(context, member)
+        if not user: return
         embed = embeds.for_level(user)
         await context.send(embed=embed)
     

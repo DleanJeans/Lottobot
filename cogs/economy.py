@@ -24,15 +24,17 @@ RICH_PER_PAGE = 10
 class Economy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
+    
     @commands.command(aliases=['bal'], brief=BALANCE_BRIEF)
-    async def balance(self, context):
-        user = context.author
+    async def balance(self, context, member=None):
+        user = await cogs.convert_to_user(context, member)
+        if not user: return
+        
         player = data.get_player(user)
         income = player.get_income()
 
         embed = self.get_balance_embed(user)
-        if player.balance < income:
+        if user == context.author and player.balance < income:
             embed.description += '\n' + lotto.INCOME_TIP + as_coins(income)
         await context.send(embed=embed)
 

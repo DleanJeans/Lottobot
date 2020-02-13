@@ -34,7 +34,8 @@ TICKETS_BRIEF = 'Show all your tickets'
 MORE_THAN_ZERO = 'Gimme more than **0** coins, bruh!'
 WAIT_FOR_RESULT = 'Hold on a minute! The result is being announced right now!'
 
-NO_TICKETS = "You haven't bought any tickets yet!"
+YOU_NO_TICKETS = "You haven't bought any tickets yet!"
+THEY_NO_TICKETS = "has't bought any tickets yet!"
 LOTTERY_RESULT = 'Lottery Result'
 
 E_TIP = '**Tip**: Try `e` for big numbers. `e6` for 6 zeros. `1e6` is 1 million!'
@@ -205,18 +206,23 @@ class Lottery(commands.Cog):
         return player.can_buy(order) and not self.announcing
 
     @commands.command(aliases=['t', 'tix', 'tic', 'ticket'], brief=TICKETS_BRIEF)
-    async def tickets(self, context):
-        user = context.author
+    async def tickets(self, context, member=None):
+        user = await cogs.convert_to_user(context, member)
+        if not user: return
+
         player = data.get_player(user)
         if player.paid_tickets or player.ticket_orders:
             embed = embeds.for_paid_tickets(user, self.next_draw)
             message = await context.send(embed=embed)
             await message.add_reaction(emotes.X)
 
+            if user != context.author: return
             for order in player.ticket_orders:
                 await self.send_ticket_order_embed(context, user, order)
         else:
-            await context.send(f'{user.mention}\n{NO_TICKETS}')
+            response = f'{user.mention}\n{YOU_NO_TICKETS}' if user == context.author \
+                else f'**{user.name}** {THEY_NO_TICKETS}'
+            await context.send(response)
 
     async def draw_result(self, context):
         await self.block_orders()
