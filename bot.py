@@ -5,7 +5,11 @@ from discord.ext.commands import Bot
 from dotenv import load_dotenv
 from cogs import economy, lottery, level_system
 
-prefixes = ['lott ', 'lot ', 'lo ']
+load_dotenv()
+TESTING = os.getenv('TESTING')
+TESTING = int(TESTING)
+
+prefixes = ['lott ', 'lot ', 'lo '] if not TESTING else ['+']
 for p in list(prefixes):
     prefixes.append(p.capitalize())
     prefixes.append(p.strip())
@@ -21,9 +25,7 @@ async def on_ready():
     await bot.change_presence(status=discord.Status.online, activity=discord.Game(status))
     print('Logged in as', bot.user.name, f'(#{bot.user.discriminator})')
 
-TESTING = False
 env_name = 'TESTING_TOKEN' if TESTING else 'BOT_TOKEN'
 
-load_dotenv()
 TOKEN = os.getenv(env_name)
 bot.run(TOKEN)

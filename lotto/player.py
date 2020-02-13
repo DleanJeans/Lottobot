@@ -58,7 +58,7 @@ class Player:
 
     def get_saved_data(self):
         net_worth = self.balance + self.get_total_spendings()
-        return { 'balance': net_worth, 'xp': self.xp }
+        return { 'balance': net_worth, 'xp': self.xp } if net_worth or self.xp else {}
 
     def get_net_worth(self):
         return self.balance + self.get_total_spendings()

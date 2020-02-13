@@ -75,7 +75,9 @@ async def save_to_disk():
     with open(JSON_FILE, 'w') as f:
         data = {}
         for id, player in players.items():
-            data[id] = player.get_saved_data()
+            player_data = player.get_saved_data()
+            if player_data:
+                data[id] = player_data
         
         json.dump(data, f)
 
